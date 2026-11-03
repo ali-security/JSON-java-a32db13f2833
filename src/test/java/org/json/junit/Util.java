@@ -117,4 +117,34 @@ public class Util {
             );
         }
     }
+
+    /**
+     * Runs the given task on a dedicated thread with a large (8 MB) stack and
+     * returns whatever it threw, or null if it completed normally. This keeps
+     * the outcome of the nesting depth tests independent of the stack size
+     * the test JVM was started with.
+     * @param task the code to run
+     * @return the Throwable thrown by the task, or null
+     */
+    public static Throwable throwableFromLargeStack(final Runnable task) {
+        final Throwable[] thrown = new Throwable[1];
+        Thread worker = new Thread(null, new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    task.run();
+                } catch (Throwable t) {
+                    thrown[0] = t;
+                }
+            }
+        }, "large-stack-test", 8L * 1024L * 1024L);
+        worker.start();
+        try {
+            worker.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while waiting for the test thread", e);
+        }
+        return thrown[0];
+    }
 }
